@@ -1,0 +1,14 @@
+{
+  "name": "KBB Nöbet Checklist",
+  "short_name": "KBB Nöbet",
+  "description": "KBB kliniği nöbet hasta yönetim uygulaması",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f5f3",
+  "theme_color": "#1a1a18",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
