@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a18">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="KBB Nöbet">
+<link rel="manifest" href="manifest.json">
+<title>KBB Nöbet</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a18;min-height:100vh;padding-bottom:80px}
+.header{padding:0.85rem 1rem 0;display:flex;align-items:center;justify-content:space-between;gap:8px}
+h1{font-size:15px;font-weight:500;flex:1}
+.hbtn{font-size:11px;padding:5px 9px;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;background:transparent;cursor:pointer;color:#5f5e5a;white-space:nowrap}
+.hbtn.primary{background:#1a1a18;color:#fff;border:none}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#ccc;display:inline-block;margin-right:5px;transition:background 0.3s}
+.sync-dot.synced{background:#1d9e75}.sync-dot.syncing{background:#f0a500}.sync-dot.error{background:#e24b4a}
+.stats-bar{padding:8px 1rem;background:#fff;border-bottom:0.5px solid rgba(0,0,0,0.08);display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.stat-pill{font-size:10px;padding:2px 7px;border-radius:20px;background:#f0f0ee;color:#3a3a38;border:0.5px solid rgba(0,0,0,0.08)}
+.tabs{display:flex;overflow-x:auto;border-bottom:0.5px solid rgba(0,0,0,0.1);scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:10px 14px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:#5f5e5a;white-space:nowrap}
+.tab.active{color:#1a1a18;border-bottom-color:#1a1a18;font-weight:500}
+.week-label{padding:6px 1rem;font-size:11px;color:#888780;border-bottom:0.5px solid rgba(0,0,0,0.06)}
+.day{display:none;padding:0.75rem 1rem 1rem}.day.active{display:block}
+.summary{display:flex;gap:8px;margin-bottom:8px}
+.metric{background:#ebebea;border-radius:8px;padding:8px 10px;flex:1;min-width:55px}
+.metric-val{font-size:18px;font-weight:500}.metric-lbl{font-size:10px;color:#5f5e5a;margin-top:1px}
+.metric.ybu-m{background:#fcebeb}.metric.ybu-m .metric-val,.metric.ybu-m .metric-lbl{color:#a32d2d}
+.ybu-banner{background:#fcebeb;border:0.5px solid rgba(163,45,45,0.2);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#a32d2d}
+.day-actions{display:flex;gap:8px;margin-bottom:12px}
+.day-btn{font-size:12px;padding:7px 12px;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;background:#fff;cursor:pointer;color:#1a1a18;flex:1}
+.day-btn.add{background:#1a1a18;color:#fff;border:none}
+.patient-card{background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.p-header{display:flex;align-items:flex-start;gap:8px;padding:10px 12px 6px}
+.p-info{flex:1;min-width:0}
+.p-name{font-size:14px;font-weight:500;cursor:pointer;display:inline}
+.p-name:hover{text-decoration:underline}
+.p-op{font-size:11px;color:#5f5e5a;margin-top:2px}
+.p-meta{display:flex;align-items:center;gap:5px;margin-top:4px;flex-wrap:wrap}
+.badge{font-size:10px;padding:2px 7px;border-radius:8px}
+.badge.sol{background:#e6f1fb;color:#185fa5}.badge.sag{background:#faeeda;color:#854f0b}.badge.ybu{background:#fcebeb;color:#a32d2d}
+.dr-badge{font-size:10px;padding:2px 7px;border-radius:8px;font-weight:500}
+.dr-FO{background:#f3e5f5;color:#6a1b9a}.dr-FÖ{background:#f3e5f5;color:#6a1b9a}
+.dr-SC{background:#e8f5e9;color:#1b5e20}.dr-SÇ{background:#e8f5e9;color:#1b5e20}
+.dr-SG{background:#e3f2fd;color:#0d47a1}
+.dr-HEO{background:#fce4ec;color:#880e4f}.dr-HEÖ{background:#fce4ec;color:#880e4f}
+.dr-SSE{background:#fff3e0;color:#e65100}.dr-SŞE{background:#fff3e0;color:#e65100}
+.dr-EK{background:#e0f2f1;color:#004d40}
+.dr-RG{background:#f1f8e9;color:#33691e}
+.dr-HB{background:#fff8e1;color:#f57f17}
+.dr-GKC{background:#e1f5fe;color:#01579b}.dr-GKÇ{background:#e1f5fe;color:#01579b}
+.dr-MSG{background:#fbe9e7;color:#bf360c}
+.dr-other{background:#f5f5f5;color:#616161}
+.del-btn{font-size:12px;color:#ddd;cursor:pointer;padding:0 4px;border:none;background:transparent;line-height:1;flex-shrink:0;margin-top:2px}
+.del-btn:hover{color:#e24b4a}
+.progress-bar{height:3px;background:rgba(0,0,0,0.07);margin:0 12px 8px;border-radius:2px}
+.progress-fill{height:100%;background:#1d9e75;border-radius:2px;transition:width 0.3s}
+.tasks{padding:0 12px 8px;display:flex;flex-wrap:wrap;gap:6px}
+.task{display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none}
+.task input[type=checkbox]{width:15px;height:15px;accent-color:#1d9e75;cursor:pointer;flex-shrink:0}
+.task label{font-size:12px;cursor:pointer}
+.task.done label{text-decoration:line-through;color:#888780}
+.alarm-tag{font-size:10px;color:#854f0b;background:#fff3e0;padding:1px 5px;border-radius:4px;cursor:pointer}
+.alarm-icon{font-size:11px;color:#ccc;cursor:pointer;margin-left:1px}
+.alarm-icon:hover{color:#854f0b}
+.extra-tasks{padding:0 12px 6px}
+.extra-task{display:flex;align-items:center;gap:4px;margin-bottom:4px}
+.extra-task input[type=checkbox]{width:15px;height:15px;accent-color:#1d9e75;flex-shrink:0}
+.extra-task label{font-size:12px;flex:1;cursor:pointer}
+.extra-task.done label{text-decoration:line-through;color:#888780}
+.extra-del{font-size:14px;color:#ddd;cursor:pointer;padding:0 4px}
+.add-row{display:flex;gap:6px;margin:0 12px 8px}
+.add-input{flex:1;font-size:12px;padding:6px 8px;border:0.5px solid rgba(0,0,0,0.15);border-radius:8px;background:#fff;font-family:inherit;color:#1a1a18}
+.add-btn{font-size:12px;padding:6px 10px;border:none;border-radius:8px;background:#1d9e75;color:#fff;cursor:pointer;font-weight:500}
+.orders-sec{margin:0 12px 8px;border-top:0.5px solid rgba(0,0,0,0.07);padding-top:7px}
+.orders-title{font-size:10px;font-weight:500;color:#5f5e5a;margin-bottom:4px}
+.orders-lbl{font-size:10px;color:#888780;margin-bottom:3px;margin-top:4px}
+.order-pills{display:flex;flex-wrap:wrap;gap:3px}
+.pill{font-size:10px;padding:2px 7px;border-radius:20px;background:#f0f0ee;color:#3a3a38;border:0.5px solid rgba(0,0,0,0.08)}
+.pill.ex{background:#eaf3de;color:#3b6d11;border-color:rgba(59,109,17,0.2)}
+.pill.pre{background:#e6f1fb;color:#185fa5;border-color:rgba(24,95,165,0.2)}
+.note-area{margin:0 12px 10px;background:#fffef5;border:0.5px solid rgba(0,0,0,0.1);border-radius:8px;padding:8px;font-size:12px;color:#3a3a38;width:calc(100% - 24px);min-height:44px;resize:vertical;font-family:inherit}
+.note-area::placeholder{color:#aaa}
+.count{font-size:11px;color:#5f5e5a;flex-shrink:0;margin-top:2px}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:1.25rem;width:calc(100% - 2rem);max-width:520px;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:15px;font-weight:500;margin-bottom:0.75rem}
+.mlabel{font-size:12px;color:#5f5e5a;display:block;margin-bottom:3px;margin-top:10px}
+.modal input[type=time],.modal input[type=text],.modal input[type=number],.modal select{width:100%;padding:8px 10px;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;font-size:14px;margin-bottom:4px;font-family:inherit;background:#fff;color:#1a1a18}
+.mcheck-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.mcheck{display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer}
+.mcheck input{width:15px;height:15px;accent-color:#1d9e75}
+.mbtns{display:flex;gap:8px;margin-top:12px}
+.mbtn{flex:1;padding:10px;border-radius:8px;font-size:14px;cursor:pointer;border:none;font-family:inherit}
+.mbtn.ok{background:#1d9e75;color:#fff}.mbtn.no{background:#f0f0ee;color:#3a3a38}
+.mbtn.danger{background:#fcebeb;color:#a32d2d}
+.detail-sec{margin-bottom:12px}
+.detail-sec-title{font-size:11px;font-weight:500;color:#5f5e5a;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.04em}
+.detail-text{font-size:12px;color:#1a1a18;line-height:1.6;background:#f9f9f7;border-radius:8px;padding:10px;white-space:pre-wrap}
+.pdf-drop{border:1.5px dashed rgba(0,0,0,0.15);border-radius:12px;padding:1.5rem 1rem;text-align:center;cursor:pointer;background:#fafaf8}
+.pdf-drop p{font-size:13px;color:#5f5e5a;margin-top:8px}
+.pdf-drop input{display:none}
+.pstatus{font-size:12px;padding:10px;border-radius:8px;margin-top:8px;text-align:center}
+.pstatus.loading{background:#e6f1fb;color:#185fa5}
+.pstatus.ok{background:#eaf3de;color:#3b6d11}
+.pstatus.err{background:#fcebeb;color:#a32d2d}
+.loading-ov{display:none;position:fixed;inset:0;background:rgba(255,255,255,0.9);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.loading-ov.open{display:flex}
+.spinner{width:32px;height:32px;border:3px solid #ebebea;border-top-color:#1d9e75;border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span class="sync-dot" id="sync-dot"></span>KBB Nöbet</h1>
+  <div style="display:flex;gap:6px">
+    <button class="hbtn primary" onclick="openModal('pdf-modal')">PDF Yükle</button>
+    <button class="hbtn" onclick="reqNotif()">🔔</button>
+  </div>
+</div>
+<div class="week-label" id="week-label">30 Mart – 3 Nisan 2026</div>
+<div class="stats-bar" id="stats-bar"></div>
+<div class="tabs" id="tabs"></div>
+<div id="days"></div>
+
+<div class="loading-ov" id="load-ov"><div class="spinner"></div><div style="font-size:13px;color:#5f5e5a" id="load-txt">İşleniyor...</div></div>
+
+<!-- Alarm Modal -->
+<div class="modal-overlay" id="alarm-modal">
+  <div class="modal">
+    <h3>⏰ Hatırlatıcı Kur</h3>
+    <span class="mlabel">Görev</span>
+    <input type="text" id="al-task" readonly style="background:#f9f9f7">
+    <span class="mlabel">Gün</span>
+    <select id="al-day">
+      <option value="0">Pazartesi 30 Mart</option>
+      <option value="1">Salı 31 Mart</option>
+      <option value="2">Çarşamba 1 Nisan</option>
+      <option value="3">Perşembe 2 Nisan</option>
+      <option value="4">Cuma 3 Nisan</option>
+    </select>
+    <span class="mlabel">Saat</span>
+    <input type="time" id="al-time">
+    <div class="mbtns">
+      <button class="mbtn no" onclick="closeModal('alarm-modal')">İptal</button>
+      <button class="mbtn danger" onclick="clearAlarm()">Sil</button>
+      <button class="mbtn ok" onclick="saveAlarm()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Patient Modal -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal">
+    <h3>Hasta Ekle</h3>
+    <span class="mlabel">Ad Soyad</span><input type="text" id="np-name" placeholder="Ad Soyad">
+    <span class="mlabel">Yaş</span><input type="number" id="np-age" placeholder="Yaş" min="0" max="120">
+    <span class="mlabel">Ameliyat</span><input type="text" id="np-op" placeholder="Ameliyat adı">
+    <span class="mlabel">Doktor</span><input type="text" id="np-dr" placeholder="SÇ, FÖ, EK...">
+    <span class="mlabel">Taraf</span>
+    <select id="np-side"><option value="">Yok</option><option value="SAĞ">SAĞ</option><option value="SOL">SOL</option></select>
+    <span class="mlabel">Özellikler</span>
+    <div class="mcheck-row">
+      <label class="mcheck"><input type="checkbox" id="np-ybu"> Postop YBÜ</label>
+      <label class="mcheck"><input type="checkbox" id="np-kayit"> Kayıt</label>
+      <label class="mcheck"><input type="checkbox" id="np-foto"> Fotoğraf</label>
+      <label class="mcheck"><input type="checkbox" id="np-rino"> Rinomanometri</label>
+      <label class="mcheck"><input type="checkbox" id="np-lavaj"> Lavaj</label>
+      <label class="mcheck"><input type="checkbox" id="np-kulak"> Kulak Am.</label>
+      <label class="mcheck"><input type="checkbox" id="np-osas"> OSAS</label>
+      <label class="mcheck"><input type="checkbox" id="np-tonsil"> Tonsillektomi</label>
+      <label class="mcheck"><input type="checkbox" id="np-fess"> FESS</label>
+      <label class="mcheck"><input type="checkbox" id="np-boyun"> Boyun Dis.</label>
+      <label class="mcheck"><input type="checkbox" id="np-acik"> Açık Teknik</label>
+      <label class="mcheck"><input type="checkbox" id="np-tiroid"> Tiroid</label>
+      <label class="mcheck"><input type="checkbox" id="np-paratiroid"> Paratiroid</label>
+      <label class="mcheck"><input type="checkbox" id="np-benign"> Benign Tiroid</label>
+      <label class="mcheck"><input type="checkbox" id="np-larenj"> Total Larenjektomi</label>
+    </div>
+    <div class="mbtns">
+      <button class="mbtn no" onclick="closeModal('add-modal')">İptal</button>
+      <button class="mbtn ok" onclick="savePatient()">Ekle</button>
+    </div>
+  </div>
+</div>
+
+<!-- Patient Detail Modal -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal" style="max-height:85vh;overflow-y:auto">
+    <h3 id="det-name"></h3>
+    <div id="det-op" style="font-size:12px;color:#5f5e5a;margin-bottom:1rem"></div>
+    <div class="detail-sec">
+      <div class="detail-sec-title">Muayene Notu</div>
+      <div class="detail-text" id="det-muayene">—</div>
+    </div>
+    <div class="mbtns"><button class="mbtn no" onclick="closeModal('detail-modal')">Kapat</button></div>
+  </div>
+</div>
+
+<!-- PDF Modal -->
+<div class="modal-overlay" id="pdf-modal">
+  <div class="modal">
+    <h3>Yeni Hafta PDF Yükle</h3>
+    <p style="font-size:12px;color:#5f5e5a;margin-bottom:10px">PDF yükleyin, sistem otomatik listeyi oluşturur.</p>
+    <div class="pdf-drop" onclick="document.getElementById('pdf-input').click()">
+      <div style="font-size:28px">📄</div>
+      <p>PDF seçmek için tıklayın</p>
+      <input type="file" id="pdf-input" accept=".pdf" onchange="handlePdf(event)">
+    </div>
+    <div id="pdf-status" style="display:none"></div>
+    <div class="mbtns" style="margin-top:12px"><button class="mbtn no" onclick="closeModal('pdf-modal')">Kapat</button></div>
+  </div>
+</div>
+
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyCBIREjqlWDRtb6JMta0SgIL9SGlrFLOtM",
+  authDomain:"kbb-servis.firebaseapp.com",
+  databaseURL:"https://kbb-servis-default-rtdb.firebaseio.com",
+  projectId:"kbb-servis",
+  storageBucket:"kbb-servis.firebasestorage.app",
+  messagingSenderId:"48456916857",
+  appId:"1:48456916857:web:cfa38243f85300ffd9d9a8"
+});
+const db=firebase.database();
+
+// ─── Order helpers ───────────────────────────────────────
+const RUTIN=["Zygosis/Ulcezol/Progas 1x1","Lamelat 1x1","Ketavel/Metadem 2x1","İlksef/Cezol 1x2","Devasid/Sulcid 3x1","İzotonik 100ml 5x1"];
+const COCUK=["İlksef 1x1","Pirofen 3x1"];
+const LARENJ=["Sulcid 3x2","Mucinac 3x1","Flagyl 3x1","Dengeli 2x1","İlksef 1x2","Ketavel 2x1","Lamelat 1x1","Ulcezol 1x1","Serum 4x1"];
+
+function buildOrders(p){
+  const pre=[],ex=[];let post;
+  if(p.totallarenj)return{pre,post:[...LARENJ],ex};
+  const kid=p.age!==null&&p.age<=12;
+  if(kid){post=[...COCUK];if(p.tonsil)ex.push("Gasvin 1x1");if(p.kulak)ex.push("Zaridinex 3x5 (aynı gün)");return{pre,post,ex};}
+  post=[...RUTIN];
+  if(p.osas){pre.push("Lamelat 1x1");ex.push("Ramadex 100mg 1x1","Dengeli 1x1","Polgyl/Flagyl 3x1");}
+  if(p.tonsil)ex.push("Gasvin");
+  if(p.fess)post=post.map(x=>x.includes("Metadem")?"Paracerol 2x1":x);
+  if(p.boyun)ex.push("Flagyl 3x1");
+  if(p.acik)ex.push("Cipropol 2x1");
+  if(p.kulak)ex.push("Zaridinex 3x5 (aynı gün)");
+  if(p.tiroid||p.paratiroid)ex.push("Qalyviz 0.5mg 2x1","Calcimax 1x1");
+  if(p.tiroid&&p.benign)ex.push("Levotiron 1x1");
+  return{pre,post,ex};
+}
+
+function buildTasks(p){
+  const t=["Yatış"];
+  if(p.kayit)t.push("Kayıt");
+  if(p.fotograf)t.push("Fotoğraf");
+  if(p.rinomano)t.push("Rinomanometri");
+  if(p.lavaj)t.push("Lavaj Testi");
+  if(p.kulak&&p.side)t.push("Saç Tıraşı ("+p.side+")");
+  if(p.isaret&&p.side)t.push("Preop İşaret ("+p.side+")");
+  t.push("Ameliyat İsteği");
+  t.push("Sabah Epikriz & Order");
+  return t;
+}
+
+function getDrClass(dr){
+  if(!dr)return'other';
+  const clean=dr.replace(/[^A-ZÇĞİÖŞÜa-zçğışöüé]/g,'');
+  const map={SG:'SG',HEÖ:'HEÖ',HEO:'HEÖ',SÇ:'SÇ',SC:'SÇ',SŞE:'SŞE',SSE:'SŞE',FÖ:'FÖ',FO:'FÖ',EK:'EK',RG:'RG',HB:'HB',GKÇ:'GKÇ',GKC:'GKÇ',MSG:'MSG'};
+  return map[dr]||map[clean]||'other';
+}
+
+// ─── Base patient data ───────────────────────────────────
+const BASE=[
+  {label:"Pzt 30/3",patients:[
+    {name:"Emrah Yoldaş",age:32,dr:"FÖ",op:"Sol Endoskopik TP",side:"SOL",ybu:false,kayit:true,fotograf:false,rinomano:false,lavaj:false,isaret:true,kulak:true,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"OTOS: Sağ TM doğal, Sol TM posterosuperior santral perfore.\nODYO (23/10/2025): R:26/14 dB, L:46/14 dB\nBT (23/10/2025): Solda mastoid hücrelerde minimal yumuşak doku-effüzyon."},
+    {name:"Hayrünnisa Güdek",age:5,dr:"FÖ",op:"Tonsillektomi",side:null,ybu:false,kayit:false,fotograf:false,rinomano:false,lavaj:false,isaret:false,kulak:false,osas:false,tonsil:true,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"PFAPA tanılı hasta.\nOFX: Tonsiller Grade 1"},
+    {name:"Sare Vatansever",age:4,dr:"SÇ",op:"Adenotonsillektomi + Kulak Kontrol",side:null,ybu:false,kayit:false,fotograf:false,rinomano:false,lavaj:false,isaret:false,kulak:false,osas:false,tonsil:true,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"OFX: Tonsiller Grade 4"},
+    {name:"Bayram Abak",age:33,dr:"SÇ",op:"Sol Revizyon Mikroskopik TP",side:"SOL",ybu:false,kayit:true,fotograf:false,rinomano:false,lavaj:false,isaret:true,kulak:true,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"OTOS: Sağ TM atrofik, Sol greft medialize, inferiordan perforasyon mevcut.\nODYO (09/02/2026): R:8/1 dB, L:28/5 dB\nBT (05/05/2025): Solda timpanik membranda hafif kalınlaşma."},
+    {name:"Ersin Başer",age:49,dr:"EK",op:"Sağ Paratiroid Adenom Eksizyonu",side:"SAĞ",ybu:false,kayit:true,fotograf:false,rinomano:false,lavaj:false,isaret:true,kulak:false,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:true,benign:false,totallarenj:false,muayene:"Foliküler karsinom nedeniyle total tiroidektomi öyküsü.\nUSG: Operasyon lojunda sağda 8.5x10x14mm paratiroid adenom ile uyumlu lezyon.\nPTH (30.01.2026): 104"},
+    {name:"Yağız Mevlüt Turğut",age:14,dr:"EK",op:"Revizyon Ranula Kisti Eksizyonu",side:null,ybu:false,kayit:false,fotograf:false,rinomano:false,lavaj:false,isaret:false,kulak:false,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"KBB OP (04/06/2025): Sol revizyon ranula kist eksizyonu + sol submandibular gland eksizyonu.\nMR (14/10/2025): Sol parafarengeal alandan boyuna uzanım gösteren ranula.\nUSG (19/02/2026): Sol submandibular bez izlenmedi (opere). Boyun orta hatta 53x20x38mm kistik lezyon."},
+    {name:"Semiha Ulu",age:42,dr:"EK",op:"Total Tiroidektomi",side:null,ybu:false,kayit:true,fotograf:false,rinomano:false,lavaj:false,isaret:false,kulak:false,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:true,paratiroid:false,benign:false,totallarenj:false,muayene:"USG (04/02/2026): Sol lob orta-üst kesimde 10.5x6mm mikrokalsiflkasyonlar içeren TIRADS 5 lezyon.\nİİAB (28/10/2025): Bethesda Kategori 5 - Papiller tiroid karsinomu şüpheli.\nSol lob 9x5.5cm hipoekoik solid nodül."},
+    {name:"Fatma Can",age:68,dr:"EK",op:"Sol Lobektomi + İsthmektomi",side:"SOL",ybu:false,kayit:true,fotograf:false,rinomano:false,lavaj:false,isaret:true,kulak:false,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:true,paratiroid:false,benign:false,totallarenj:false,muayene:"USG (23/10/2025): Sol lob orta kesim anteriorda 6.5x5.5x10mm düzensiz sınırlı hipoekoik nodül.\nİİAB (16/12/2025): Bethesda 6 - Sol lob orta kesim."},
+    {name:"Akın Gökgöz",age:42,dr:"MSG",op:"Revizyon Septoplasti + Uyku Cerrahisi",side:null,ybu:true,kayit:false,fotograf:true,rinomano:true,lavaj:false,isaret:false,kulak:false,osas:true,tonsil:false,fess:false,boyun:false,acik:true,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"AR: Septum sola deviye, sağda taban kreti.\nOFX: Tonsiller Grade 1, Mallampati 3.\nMR (27/12/2025): Bilateral palatın tonsiller hipertrofik.\nBT (24/12/2025): Etmoidal hücrelerde hafif enflamatuar değişiklikler. Nazal septum sağa deviye."},
+    {name:"Erdem Emre",age:32,dr:"MSG",op:"Septoplasti + Uyku Endoskopisi + Konka RF",side:null,ybu:false,kayit:false,fotograf:false,rinomano:true,lavaj:false,isaret:false,kulak:false,osas:true,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"AR: Septum sola forte deviye.\nOFX: Tonsiller Grade 1, Mallampati 1."},
+  ]},
+  {label:"Sal 31/3",patients:[
+    {name:"Rabia İşvarlar",age:26,dr:"SŞE",op:"Sol Timpanoplasti",side:"SOL",ybu:false,kayit:true,fotograf:false,rinomano:false,lavaj:false,isaret:true,kulak:true,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"OTOS: Sağ greft intakt, Sol posterosuperiordan perfore, TM atrofik.\nBT (30/01/2026): Doğal.\nODYO (30/01/2026): R:21/6 dB, L:24/12 dB"},
+    {name:"Selçuk Gürbüzer",age:32,dr:"SŞE",op:"Tonsillektomi + Septoplasti + Uyku Endoskopisi",side:null,ybu:false,kayit:false,fotograf:false,rinomano:true,lavaj:false,isaret:false,kulak:false,osas:true,tonsil:true,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"OFX: Tonsiller Grade 4, Mallampati 2-3.\nAR: Septum sol taban kreti.\nAHİ: 20"},
+    {name:"Cihan Güven",age:43,dr:"RG",op:"Açık Teknik Septoplasti",side:null,ybu:false,kayit:false,fotograf:true,rinomano:true,lavaj:false,isaret:false,kulak:false,osas:false,tonsil:false,fess:false,boyun:false,acik:true,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"AR: Septum sağa forte deviye, kolumella sola sublukse.\nBT (24/02/2026): Nazal konkalarda hipertrofik değişiklikler. Septumda inferiorda sola, orta kesimde sağa deviasyon."},
+    {name:"Rukiye Kanpara",age:68,dr:"RG",op:"Tonsil Biyopsisi +/- DL",side:null,ybu:false,kayit:true,fotograf:false,rinomano:false,lavaj:false,isaret:false,kulak:false,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"OFX: Sağ tonsil posteriorunda ortası ülsere beyaz lezyon.\nMR (08/10/2025): Sağ palatın tonsil asimetrik hipertrofik.\nPET (23/02/2026): Orofarinks sağ parafarengeal alanda yoğun hipermetabolik lezyon. DeauVille Skor 5."},
+    {name:"Miray Abiş",age:6,dr:"RG",op:"Revizyon Koanal Atrezi",side:"SAĞ",ybu:false,kayit:false,fotograf:false,rinomano:false,lavaj:false,isaret:true,kulak:false,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"FLEX: Sağ nazal pasajdaki sineziye bağlı açıklık izlenemedi. İp testi negatif.\nBT (16/08/2024): Sağda koanal atrezi ile uyumlu membranöz görünüm."},
+    {name:"Osman Talha Kaplan",age:5,dr:"HB",op:"Adenotonsillotomi",side:null,ybu:false,kayit:false,fotograf:false,rinomano:false,lavaj:false,isaret:false,kulak:false,osas:false,tonsil:true,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"OFX: Tonsiller Grade 3.\nAV: %90"},
+    {name:"Mehmet Uyanık",age:36,dr:"HB",op:"Fonksiyonel Septorinooplasti",side:null,ybu:false,kayit:false,fotograf:true,rinomano:true,lavaj:false,isaret:false,kulak:false,osas:false,tonsil:false,fess:false,boyun:false,acik:true,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"AR: Septum solda taban kreti, sağa deviye, kolumella sola sublukse.\nBT (12/03/2026): Her iki orta konka anteriorda paradoksal seyirli. Septumda hafif S tipi deviasyon."},
+  ]},
+  {label:"Çar 1/4",patients:[
+    {name:"Hürmüz Onat",age:72,dr:"FÖ",op:"Sağ DSR + Septoplasti",side:"SAĞ",ybu:false,kayit:true,fotograf:false,rinomano:true,lavaj:true,isaret:true,kulak:false,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"AR: Septum sağda yüksek deviye.\nLavaj Testi: Pozitif.\nBT (13/06/2025): Sol periorbital bölgede cilt altında ödem bulguları."},
+    {name:"Salih Köşeli",age:45,dr:"FÖ",op:"Sağ Mikroskopik Revizyon ICWTM",side:"SAĞ",ybu:false,kayit:true,fotograf:false,rinomano:false,lavaj:false,isaret:true,kulak:true,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"OTOS: Sağ TM inferiorda santral geniş perfore. Sol TM doğal.\nODYO (21/01/2026): R:50/14 dB, L:6/2 dB\nBT (03/03/2026): Sağda orta kulak ve mastoid hücrelerde effüzyon."},
+    {name:"Feyzanur Çetinkaya",age:34,dr:"RG",op:"Septoplasti + Konka RF",side:null,ybu:false,kayit:false,fotograf:false,rinomano:true,lavaj:false,isaret:false,kulak:false,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"AR: Septum sola deviye, konkalar hipertrofik.\nBT (30/12/2025): Sağ orta konkada lamellar tip konka bülloza. Septumda açıklığı sağa bakan deviasyon."},
+    {name:"Beytullah Turan",age:40,dr:"RG",op:"Sol Tip 1 TP",side:"SOL",ybu:false,kayit:true,fotograf:false,rinomano:false,lavaj:false,isaret:true,kulak:true,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"OTOS: Sol TM anteriorda santral, posteriorda marjinal perforasyon.\nODYO (04/03/2026): R:29/19 dB, L:35/18 dB\nBT: Bilateral mastoid hücre aerasyonu tabiidir."},
+  ]},
+  {label:"Per 2/4",patients:[
+    {name:"Ayşe Erdoğan",age:59,dr:"MSG",op:"Uyku Cerrahisi + Konka RF",side:null,ybu:false,kayit:false,fotograf:false,rinomano:false,lavaj:false,isaret:false,kulak:false,osas:true,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"AR: Septum kabaca orta hatta, alt konkalar HT.\nOFX: Tonsiller Grade 1, Mallampati 3, Dil kökü hipertrofik, uvula hafif elonge.\nAHİ: 42.6, Supin 45.6"},
+    {name:"Kenan Korkmaz",age:46,dr:"GKÇ",op:"Bilateral FESS +/- Septoplasti",side:null,ybu:true,kayit:false,fotograf:false,rinomano:false,lavaj:false,isaret:false,kulak:false,osas:false,tonsil:false,fess:true,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"FLEX: Sağ nazal pasaj orta meadan koana dolduran antrokoanal polip.\nAR: Septum sağa deviye.\nBT (26/12/2025): Sağ maksiller sinüste tam aerasyon kaybı, ostiumdan sağ nazal kaviteye uzanan yumuşak doku.\nPATOLOJİ (26/01/2026): İnflame sinonazal/antrokoanal polip."},
+  ]},
+  {label:"Cum 3/4",patients:[
+    {name:"Selim Akif Yiğit",age:8,dr:"RG",op:"Adenoid Kontrol + Bilateral VT (Sünnet ile)",side:null,ybu:false,kayit:false,fotograf:false,rinomano:false,lavaj:false,isaret:false,kulak:true,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"OTOS: Bilateral TM mat retrakte.\nTIMP: Bilateral Tip B.\nOFX: Tonsiller Grade 2.\nODYO (24/03/2026): R:39/8 dB, L:41/8 dB\nAV: %50"},
+    {name:"Eda Sarıçayır",age:29,dr:"HB",op:"Septorinooplasti",side:null,ybu:false,kayit:false,fotograf:true,rinomano:true,lavaj:false,isaret:false,kulak:false,osas:false,tonsil:false,fess:false,boyun:false,acik:true,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"AR: Septum sola deviye.\nBT (02/10/2023): Nazal septum sola deviye."},
+    {name:"Deniz Karayazı",age:41,dr:"HB",op:"Septoplasti + Kolumella Lezyon Eksizyonu",side:null,ybu:false,kayit:false,fotograf:false,rinomano:true,lavaj:false,isaret:false,kulak:false,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"AR: Septum sola deviye, alt konkalar hipertrofik. Kolumellada 3-4mm papillomatöz lezyon.\nBT (21/08/2025): Frontal sinüs sol yarımı ve sağ maksiller sinüs hipoplazik."},
+    {name:"Ahmed Hazzuri",age:4,dr:"GKÇ",op:"Adenoidektomi + Bilateral Kulak Kontrolü",side:null,ybu:false,kayit:false,fotograf:false,rinomano:false,lavaj:false,isaret:false,kulak:false,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"OTOS: Bilateral EOM.\nOFX: Tonsiller Grade 1.\nAV: %90"},
+    {name:"Ersin İmralı",age:47,dr:"GKÇ",op:"Septoplasti",side:null,ybu:false,kayit:false,fotograf:false,rinomano:true,lavaj:false,isaret:false,kulak:false,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"AR: Kolumella sola sublukse, septum sağa deviye.\nBT (18/03/2026): Sol maksiller sinüs ve etmoidal hücrelerde hafif enflamatuar değişiklikler."},
+    {name:"Meryem Ela Sarman",age:4,dr:"GKÇ",op:"Adenoidektomi + Bilateral VT",side:null,ybu:false,kayit:false,fotograf:false,rinomano:false,lavaj:false,isaret:false,kulak:false,osas:false,tonsil:false,fess:false,boyun:false,acik:false,tiroid:false,paratiroid:false,benign:false,totallarenj:false,muayene:"OTOS: Sağ TM doğal, Sol mat.\nOFX: Bifid uvula, Tonsiller Grade 1.\nTIMP: Bilateral Tip B."},
+  ]},
+];
+BASE.forEach(d=>d.patients.forEach(p=>{p.tasks=buildTasks(p);}));
+
+// ─── State ───────────────────────────────────────────────
+let fbData=null, curDay=0, pendAlarm=null, pendAddDay=0;
+const FB='nobet_30mart';
+
+function setSyncDot(s){const d=document.getElementById('sync-dot');if(d)d.className='sync-dot '+s;}
+
+function initFb(){
+  setSyncDot('syncing');
+  db.ref(FB).on('value',snap=>{
+    const v=snap.val();
+    if(v){
+      fbData=v;
+      // Don't re-render if user is actively typing in a note field
+      const activeEl=document.activeElement;
+      if(activeEl&&activeEl.classList.contains('note-area')){
+        setSyncDot('synced');
+      } else {
+        renderAll();setSyncDot('synced');
+      }
+    }
+    else{
+      const init={weekLabel:'30 Mart – 3 Nisan 2026',days:BASE.map(d=>({label:d.label,patients:d.patients.map(p=>Object.assign({},p))})),checks:BASE.map(d=>d.patients.map(p=>p.tasks.map(()=>false))),extraTasks:BASE.map(d=>d.patients.map(()=>[])),extraChecks:BASE.map(d=>d.patients.map(()=>[])),notes:BASE.map(d=>d.patients.map(()=>'')),alarms:BASE.map(d=>d.patients.map(()=>({}))),addedPatients:BASE.map(()=>[])};
+      db.ref(FB).set(init).then(()=>{fbData=init;renderAll();setSyncDot('synced');}).catch(()=>setSyncDot('error'));
+    }
+  },()=>setSyncDot('error'));
+}
+
+function getS(){return fbData||{weekLabel:'',days:BASE,checks:[],extraTasks:[],extraChecks:[],notes:[],alarms:[],addedPatients:[]};}
+function cloneS(){return JSON.parse(JSON.stringify(getS()));}
+let activeNote=null;
+function saveS(s){
+  setSyncDot('syncing');
+  db.ref(FB).set(s).then(()=>setSyncDot('synced')).catch(()=>setSyncDot('error'));
+}
+
+function getDayPts(di){
+  const s=getS();
+  const base=((s.days&&s.days[di])?s.days[di].patients:BASE[di].patients).map(p=>{const c=Object.assign({},p);if(!c.tasks)c.tasks=buildTasks(c);return c;});
+  const added=((s.addedPatients||[])[di]||[]).map(p=>{const c=Object.assign({},p);if(!c.tasks)c.tasks=buildTasks(c);return c;});
+  return base.concat(added);
+}
+
+// ─── Stats bar ───────────────────────────────────────────
+function renderStats(){
+  const el=document.getElementById('stats-bar');if(!el)return;
+  const drC={},opC={};
+  // Always use BASE for stats to ensure dr field is present
+  BASE.forEach((d,di)=>{
+    d.patients.forEach(p=>{
+      if(p.dr)drC[p.dr]=(drC[p.dr]||0)+1;
+      const k=(p.op||'').substring(0,35);opC[k]=(opC[k]||0)+1;
+    });
+  });
+  // Also count added patients
+  const s=getS();
+  (s.addedPatients||[]).forEach(arr=>(arr||[]).forEach(p=>{
+    if(p&&p.dr)drC[p.dr]=(drC[p.dr]||0)+1;
+    if(p&&p.op){const k=p.op.substring(0,35);opC[k]=(opC[k]||0)+1;}
+  }));
+  let h='<span style="font-size:10px;color:#888780;margin-right:3px">Dr:</span>';
+  Object.entries(drC).sort((a,b)=>b[1]-a[1]).forEach(([dr,n])=>{
+    h+=`<span class="stat-pill" style="font-weight:500">${dr} (${n})</span>`;
+  });
+  h+='<span style="font-size:10px;color:#888780;margin-left:6px;margin-right:3px">Op:</span>';
+  Object.entries(opC).sort((a,b)=>b[1]-a[1]).filter(([,n])=>n>1).slice(0,6).forEach(([op,n])=>{
+    h+=`<span class="stat-pill">${op} ×${n}</span>`;
+  });
+  el.innerHTML=h;
+}
+
+// ─── Render ──────────────────────────────────────────────
+function renderAll(){
+  const s=getS();
+  const dayList=s.days||BASE;
+  document.getElementById('week-label').textContent=s.weekLabel||'30 Mart – 3 Nisan 2026';
+  renderStats();
+  const tabsEl=document.getElementById('tabs');
+  const daysEl=document.getElementById('days');
+  tabsEl.innerHTML='';daysEl.innerHTML='';
+  dayList.forEach((d,di)=>{
+    const tab=document.createElement('div');
+    tab.className='tab'+(di===curDay?' active':'');
+    tab.textContent=d.label;tab.onclick=()=>switchDay(di);
+    tabsEl.appendChild(tab);
+    const div=document.createElement('div');
+    div.id='day-'+di;div.className='day'+(di===curDay?' active':'');
+    daysEl.appendChild(div);
+    renderDay(di);
+  });
+}
+
+function renderDay(di){
+  const s=getS();
+  const pts=getDayPts(di);
+  const basePts=(s.days&&s.days[di])?s.days[di].patients:BASE[di].patients;
+  const baseCount=basePts.length;
+  const el=document.getElementById('day-'+di);if(!el)return;
+  const checks=(s.checks||[])[di]||[];
+  const extraT=(s.extraTasks||[])[di]||[];
+  const extraC=(s.extraChecks||[])[di]||[];
+  const notes=(s.notes||[])[di]||[];
+  const alarms=(s.alarms||[])[di]||[];
+  let td=0,tt=0,pd=0,ybu=0;
+  pts.forEach((p,i)=>{
+    const pt=checks[i]||p.tasks.map(()=>false);
+    const et=extraT[i]||[];const ec=extraC[i]||[];
+    tt+=pt.length+et.length;
+    const dn=pt.filter(Boolean).length+ec.filter(Boolean).length;
+    td+=dn;if(dn===pt.length+et.length&&pt.length+et.length>0)pd++;
+    if(p.ybu)ybu++;
+  });
+  let h=`<div class="summary">
+    <div class="metric"><div class="metric-val">${td}</div><div class="metric-lbl">tamamlanan</div></div>
+    <div class="metric"><div class="metric-val">${tt}</div><div class="metric-lbl">toplam görev</div></div>
+    <div class="metric"><div class="metric-val">${pd}</div><div class="metric-lbl">hazır hasta</div></div>
+    <div class="metric ybu-m"><div class="metric-val">${ybu}</div><div class="metric-lbl">YBÜ yeri</div></div>
+  </div>`;
+  if(ybu>0){
+    const names=pts.filter(p=>p.ybu).map(p=>p.name.split(' ')[0]).join(', ');
+    h+=`<div class="ybu-banner">🏥 ${ybu} YBÜ yeri: ${names}</div>`;
+  }
+  h+=`<div class="day-actions">
+    <button class="day-btn add" onclick="openAddPatient(${di})">+ Hasta Ekle</button>
+    <button class="day-btn" onclick="resetDay(${di})">Günü Sıfırla</button>
+  </div>`;
+
+  pts.forEach((p,pi)=>{
+    const pt=checks[pi]||p.tasks.map(()=>false);
+    const et=extraT[pi]||[];const ec=extraC[pi]||[];
+    const note=notes[pi]||'';const alarm=alarms[pi]||{};
+    const dn=pt.filter(Boolean).length+ec.filter(Boolean).length;
+    const total=pt.length+et.length;
+    const done=dn===total&&total>0;
+    const pct=total>0?Math.round(dn/total*100):0;
+    const sc=p.side==='SOL'?'sol':p.side==='SAĞ'?'sag':'';
+    const sb=p.side?`<span class="badge ${sc}">${p.side}</span>`:'';
+    const yb=p.ybu?'<span class="badge ybu">Postop YBÜ</span>':'';
+    const drCls=getDrClass(p.dr||'');
+    const drB=p.dr?`<span class="dr-badge dr-${drCls}">${p.dr}</span>`:'';
+    const delB=`<button class="del-btn" onclick="deletePatient(${di},${pi})" title="Sil">🗑</button>`;
+
+    h+=`<div class="patient-card">
+      <div class="p-header">
+        <div class="p-info">
+          <div><span class="p-name" style="${done?'text-decoration:line-through;color:#888780':''}" onclick="openDetail(${di},${pi})">${p.name||''}${p.age?', '+p.age:''}</span></div>
+          <div class="p-op">${p.op||''}</div>
+          <div class="p-meta">${sb}${yb}${drB}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px">
+          <span class="count">${dn}/${total}</span>
+          ${delB}
+        </div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="tasks">`;
+
+    p.tasks.forEach((t,ti)=>{
+      const ak='t_'+ti;const ha=alarm[ak];
+      h+=`<div class="task${pt[ti]?' done':''}" onclick="toggleCheck(${di},${pi},${ti})">
+        <input type="checkbox" ${pt[ti]?'checked':''} onclick="event.stopPropagation();toggleCheck(${di},${pi},${ti})">
+        <label>${t}</label>
+        ${ha?`<span class="alarm-tag" onclick="event.stopPropagation();openAlarm(${di},${pi},'${ak}','${t.replace(/'/g,"\\'")}')">⏰${ha}</span>`:''}
+        <span class="alarm-icon" onclick="event.stopPropagation();openAlarm(${di},${pi},'${ak}','${t.replace(/'/g,"\\'")}')">🔔</span>
+      </div>`;
+    });
+    h+=`</div>`;
+
+    if(et.length>0){
+      h+=`<div class="extra-tasks">`;
+      et.forEach((t,eti)=>{
+        const ak='e_'+eti;const ha=alarm[ak];
+        h+=`<div class="extra-task${ec[eti]?' done':''}">
+          <input type="checkbox" ${ec[eti]?'checked':''} onclick="toggleExtra(${di},${pi},${eti})">
+          <label onclick="toggleExtra(${di},${pi},${eti})">${t}</label>
+          ${ha?`<span class="alarm-tag" onclick="openAlarm(${di},${pi},'${ak}','${t.replace(/'/g,"\\'")}')">⏰${ha}</span>`:''}
+          <span class="alarm-icon" onclick="openAlarm(${di},${pi},'${ak}','${t.replace(/'/g,"\\'")}')">🔔</span>
+          <span class="extra-del" onclick="deleteExtra(${di},${pi},${eti})">×</span>
+        </div>`;
+      });
+      h+=`</div>`;
+    }
+
+    h+=`<div class="add-row">
+      <input class="add-input" type="text" id="nt-${di}-${pi}" placeholder="Ekstra görev ekle..." onkeydown="if(event.key==='Enter')addExtra(${di},${pi})">
+      <button class="add-btn" onclick="addExtra(${di},${pi})">+</button>
+    </div>`;
+
+    // Orders
+    const{pre,post,ex}=buildOrders(p);
+    h+=`<div class="orders-sec"><div class="orders-title">Orderlar</div>`;
+    if(pre.length){h+=`<div class="orders-lbl">Preop:</div><div class="order-pills">`;pre.forEach(o=>{h+=`<span class="pill pre">${o}</span>`;});h+=`</div>`;}
+    h+=`<div class="orders-lbl">Postop 0. gün:</div><div class="order-pills">`;
+    post.forEach(o=>{h+=`<span class="pill">${o}</span>`;});
+    ex.forEach(o=>{h+=`<span class="pill ex">${o}</span>`;});
+    h+=`</div></div>`;
+
+    h+=`<textarea class="note-area" placeholder="Not ekle..." id="note-${di}-${pi}" oninput="saveNote(${di},${pi},this.value)">${note}</textarea>`;
+    h+=`</div>`;
+  });
+
+  el.innerHTML=h;
+}
+
+// ─── Actions ─────────────────────────────────────────────
+function toggleCheck(di,pi,ti){
+  const s=cloneS();
+  if(!s.checks[di])s.checks[di]=[];
+  if(!s.checks[di][pi])s.checks[di][pi]=getDayPts(di)[pi].tasks.map(()=>false);
+  s.checks[di][pi][ti]=!s.checks[di][pi][ti];
+  saveS(s);
+}
+
+function toggleExtra(di,pi,eti){
+  const s=cloneS();
+  if(!s.extraChecks[di][pi])s.extraChecks[di][pi]=[];
+  s.extraChecks[di][pi][eti]=!s.extraChecks[di][pi][eti];
+  saveS(s);
+}
+
+function addExtra(di,pi){
+  const inp=document.getElementById(`nt-${di}-${pi}`);
+  const val=inp.value.trim();if(!val)return;
+  const s=cloneS();
+  if(!s.extraTasks[di][pi])s.extraTasks[di][pi]=[];
+  if(!s.extraChecks[di][pi])s.extraChecks[di][pi]=[];
+  s.extraTasks[di][pi].push(val);
+  s.extraChecks[di][pi].push(false);
+  saveS(s);
+}
+
+function deleteExtra(di,pi,eti){
+  const s=cloneS();
+  s.extraTasks[di][pi].splice(eti,1);
+  s.extraChecks[di][pi].splice(eti,1);
+  saveS(s);
+}
+
+let noteTimer=null;
+function saveNote(di,pi,val){
+  clearTimeout(noteTimer);
+  noteTimer=setTimeout(()=>{
+    const s=cloneS();
+    if(!s.notes[di])s.notes[di]=[];
+    s.notes[di][pi]=val;
+    saveS(s);
+  },1500);
+}
+
+function deletePatient(di,pi){
+  event.stopPropagation();
+  if(!confirm('Bu hasta silinsin mi?'))return;
+  const s=cloneS();
+  const basePts=(s.days&&s.days[di])?s.days[di].patients:BASE[di].patients;
+  if(pi<basePts.length){
+    if(!s.days[di])s.days[di]={label:BASE[di].label,patients:BASE[di].patients.map(p=>Object.assign({},p))};
+    s.days[di].patients.splice(pi,1);
+  } else {
+    if(s.addedPatients[di])s.addedPatients[di].splice(pi-basePts.length,1);
+  }
+  if(s.checks[di])s.checks[di].splice(pi,1);
+  if(s.extraTasks[di])s.extraTasks[di].splice(pi,1);
+  if(s.extraChecks[di])s.extraChecks[di].splice(pi,1);
+  if(s.notes[di])s.notes[di].splice(pi,1);
+  if(s.alarms[di])s.alarms[di].splice(pi,1);
+  saveS(s);
+}
+
+function resetDay(di){
+  if(!confirm('Bu günün tüm tikleri sıfırlansın mı?'))return;
+  const s=cloneS();
+  const bp=(s.days&&s.days[di])?s.days[di].patients:BASE[di].patients;
+  // Reset only checks, keep notes and extra tasks
+  s.checks[di]=bp.map(p=>{const c=Object.assign({},p);if(!c.tasks)c.tasks=buildTasks(c);return c.tasks.map(()=>false);});
+  if(s.extraChecks[di])s.extraChecks[di]=s.extraChecks[di].map(arr=>(arr||[]).map(()=>false));
+  saveS(s);
+}
+
+function switchDay(di){
+  curDay=di;
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===di));
+  document.querySelectorAll('.day').forEach((d,i)=>d.classList.toggle('active',i===di));
+}
+
+// ─── Alarm ───────────────────────────────────────────────
+function openAlarm(di,pi,key,taskName){
+  pendAlarm={di,pi,key};
+  document.getElementById('al-task').value=taskName;
+  document.getElementById('al-day').value=di;
+  const ex=((getS().alarms||[])[di]||[])[pi]||{};
+  document.getElementById('al-time').value=ex[key]||'';
+  openModal('alarm-modal');
+}
+
+function saveAlarm(){
+  if(!pendAlarm)return;
+  const{di,pi,key}=pendAlarm;
+  const time=document.getElementById('al-time').value;
+  const day=parseInt(document.getElementById('al-day').value);
+  if(!time){alert('Lütfen saat seçin.');return;}
+  const s=cloneS();
+  if(!s.alarms[day])s.alarms[day]=[];
+  if(!s.alarms[day][pi])s.alarms[day][pi]={};
+  s.alarms[day][pi][key]=time;
+  saveS(s);
+  schedNotif(day,pi,key,time);
+  closeModal('alarm-modal');
+}
+
+function clearAlarm(){
+  if(!pendAlarm)return;
+  const{di,pi,key}=pendAlarm;
+  const s=cloneS();
+  if(s.alarms[di]&&s.alarms[di][pi])delete s.alarms[di][pi][key];
+  saveS(s);closeModal('alarm-modal');
+}
+
+function schedNotif(di,pi,key,time){
+  if(Notification.permission!=='granted')return;
+  const[h,m]=time.split(':').map(Number);
+  const now=new Date(),target=new Date();
+  target.setHours(h,m,0,0);
+  if(target<=now)target.setDate(target.getDate()+1);
+  const p=getDayPts(di)[pi];
+  const s=getS();
+  const tname=key.startsWith('t_')?p.tasks[parseInt(key.slice(2))]:((s.extraTasks[di]||[])[pi]||[])[parseInt(key.slice(2))]||'';
+  setTimeout(()=>{try{new Notification('KBB — '+p.name,{body:tname,icon:'./icon-192.png'});}catch(e){}},target-now);
+}
+
+// ─── Add patient ─────────────────────────────────────────
+function openAddPatient(di){
+  pendAddDay=di;
+  ['np-name','np-op','np-dr'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('np-age').value='';
+  document.getElementById('np-side').value='';
+  ['np-ybu','np-kayit','np-foto','np-rino','np-lavaj','np-kulak','np-osas','np-tonsil','np-fess','np-boyun','np-acik','np-tiroid','np-paratiroid','np-benign','np-larenj'].forEach(id=>document.getElementById(id).checked=false);
+  openModal('add-modal');
+}
+
+function savePatient(){
+  const name=document.getElementById('np-name').value.trim();
+  const op=document.getElementById('np-op').value.trim();
+  if(!name||!op){alert('Ad ve ameliyat zorunludur.');return;}
+  const sv=document.getElementById('np-side').value;
+  const p={name,op,dr:document.getElementById('np-dr').value.trim().toUpperCase()||null,age:parseInt(document.getElementById('np-age').value)||null,side:sv||null,ybu:document.getElementById('np-ybu').checked,kayit:document.getElementById('np-kayit').checked,fotograf:document.getElementById('np-foto').checked,rinomano:document.getElementById('np-rino').checked,lavaj:document.getElementById('np-lavaj').checked,isaret:!!sv,kulak:document.getElementById('np-kulak').checked,osas:document.getElementById('np-osas').checked,tonsil:document.getElementById('np-tonsil').checked,fess:document.getElementById('np-fess').checked,boyun:document.getElementById('np-boyun').checked,acik:document.getElementById('np-acik').checked,tiroid:document.getElementById('np-tiroid').checked,paratiroid:document.getElementById('np-paratiroid').checked,benign:document.getElementById('np-benign').checked,totallarenj:document.getElementById('np-larenj').checked,muayene:''};
+  p.tasks=buildTasks(p);
+  const s=cloneS();
+  if(!s.addedPatients[pendAddDay])s.addedPatients[pendAddDay]=[];
+  s.addedPatients[pendAddDay].push(p);
+  s.checks[pendAddDay].push(p.tasks.map(()=>false));
+  s.extraTasks[pendAddDay].push([]);
+  s.extraChecks[pendAddDay].push([]);
+  s.notes[pendAddDay].push('');
+  s.alarms[pendAddDay].push({});
+  saveS(s);closeModal('add-modal');
+}
+
+// ─── Detail ──────────────────────────────────────────────
+function openDetail(di,pi){
+  const p=getDayPts(di)[pi];
+  document.getElementById('det-name').textContent=(p.name||'')+(p.age?', '+p.age:'')+(p.dr?' — '+p.dr:'');
+  document.getElementById('det-op').textContent=p.op||'';
+  document.getElementById('det-muayene').textContent=p.muayene||'—';
+  openModal('detail-modal');
+}
+
+// ─── PDF ─────────────────────────────────────────────────
+async function handlePdf(event){
+  const file=event.target.files[0];if(!file)return;
+  const st=document.getElementById('pdf-status');
+  st.style.display='block';st.className='pstatus loading';st.textContent='PDF okunuyor...';
+  try{
+    const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=()=>rej(new Error('Okunamadı'));r.readAsDataURL(file);});
+    document.getElementById('load-txt').textContent='Ameliyat listesi oluşturuluyor...';
+    document.getElementById('load-ov').classList.add('open');
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:6000,messages:[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:'Bu KBB ameliyat listesi PDF\'inden hasta listesini çıkar. Sadece JSON döndür.\n\nKurallar:\n- Timpanoplasti/Miringoplasti/DSR/DL/Tiroid/Paratiroid/Boyun dis/LAP → kayit:true\n- Açık teknik septoplasti → fotograf:true, rinomano:true, acik:true\n- Standart septoplasti → rinomano:true\n- DSR → lavaj:true\n- Kulak ameliyatı → kulak:true\n- OSAS/Uyku cerrahisi → osas:true\n- Tonsillektomi → tonsil:true\n- FESS → fess:true\n- Boyun diseksiyonu → boyun:true\n- Tiroid → tiroid:true (malign ise benign:false)\n- Paratiroid → paratiroid:true\n- Total larenjektomi → totallarenj:true\n- Sağ/Sol → side:"SAĞ"/"SOL", isaret:true\n- Postop YBÜ → ybu:true\n- dr: ameliyat listesindeki doktor kısaltması (SG, HEÖ, SÇ vs.)\n- muayene: PDF deki muayene/tetkik notları (kısaltma değil tam metin)\n\nFormat:\n{"weekLabel":"30 Mart - 3 Nisan 2026","days":[{"label":"Pzt 30/3","patients":[{"name":"...","age":32,"dr":"FÖ","op":"...","side":"SOL","ybu":false,"kayit":true,"fotograf":false,"rinomano":false,"lavaj":false,"isaret":true,"kulak":true,"osas":false,"tonsil":false,"fess":false,"boyun":false,"acik":false,"tiroid":false,"paratiroid":false,"benign":false,"totallarenj":false,"muayene":"..."}]}]}'}]}]})});
+    const data=await resp.json();
+    const text=data.content.map(c=>c.text||'').join('');
+    const clean=text.replace(/```json|```/g,'').trim();
+    const parsed=JSON.parse(clean);
+    parsed.days.forEach(d=>d.patients.forEach(p=>{p.tasks=buildTasks(p);}));
+    const ns={weekLabel:parsed.weekLabel,days:parsed.days,checks:parsed.days.map(d=>d.patients.map(p=>p.tasks.map(()=>false))),extraTasks:parsed.days.map(d=>d.patients.map(()=>[])),extraChecks:parsed.days.map(d=>d.patients.map(()=>[])),notes:parsed.days.map(d=>d.patients.map(()=>'')),alarms:parsed.days.map(d=>d.patients.map(()=>({}))),addedPatients:parsed.days.map(()=>[])};
+    db.ref(FB).set(ns).then(()=>{document.getElementById('load-ov').classList.remove('open');st.className='pstatus ok';st.textContent='✓ '+parsed.weekLabel+' oluşturuldu! '+parsed.days.reduce((a,d)=>a+d.patients.length,0)+' hasta.';curDay=0;closeModal('pdf-modal');}).catch(e=>{document.getElementById('load-ov').classList.remove('open');st.className='pstatus err';st.textContent='Kayıt hatası: '+e.message;});
+  }catch(e){document.getElementById('load-ov').classList.remove('open');st.className='pstatus err';st.textContent='Hata: '+e.message;}
+  event.target.value='';
+}
+
+// ─── Helpers ─────────────────────────────────────────────
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');pendAlarm=null;}
+function reqNotif(){
+  if(!('Notification'in window)){alert('Bildirim desteklenmiyor.');return;}
+  Notification.requestPermission().then(p=>alert(p==='granted'?'Bildirim izni verildi!':'Reddedildi.'));
+}
+
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+renderAll();
+initFb();
+</script>
+</body>
+</html>
